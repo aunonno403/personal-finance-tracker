@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { addTransaction, getTransactions } from "@/lib/server/finance-repository";
+import {
+  addTransaction,
+  deleteTransactionById,
+  getTransactions,
+} from "@/lib/server/finance-repository";
 import { CATEGORY_SUGGESTIONS, NewTransactionInput } from "@/lib/types/finance";
 
 export async function GET() {
@@ -35,4 +39,20 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ transaction }, { status: 201 });
+}
+
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ message: "Transaction id is required." }, { status: 400 });
+  }
+
+  const deleted = await deleteTransactionById(id);
+  if (!deleted) {
+    return NextResponse.json({ message: "Transaction not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

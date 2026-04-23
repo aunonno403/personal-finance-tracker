@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CategoryDistributionItem } from "@/lib/types/finance";
 import { formatBDT } from "@/lib/utils/currency";
 
-const colors = ["#0ea5e9", "#14b8a6", "#f97316", "#eab308", "#84cc16", "#22c55e", "#ef4444", "#f43f5e", "#6366f1"];
+const colors = ["#0ea5e9", "#14b8a6", "#f97316", "#eab308", "#84cc16", "#22c55e", "#ef4444", "#f43f5e", "#6366f1","#fff700"];
 
 type ExpenseCategoryPieProps = {
   data: CategoryDistributionItem[];
