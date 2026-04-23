@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, Trash2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,20 +13,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Transaction } from "@/lib/types/finance";
+import { CATEGORY_SUGGESTIONS, NewTransactionInput, Transaction } from "@/lib/types/finance";
 import { formatBDT } from "@/lib/utils/currency";
 import { formatHumanDate } from "@/lib/utils/date";
 
 type RecentTransactionsProps = {
   transactions: Transaction[];
+  totalCount: number;
+  isShowingFullHistory: boolean;
+  onToggleHistory: () => void;
   onDeleteTransaction: (id: string) => Promise<void>;
+  onEditTransaction: (id: string, payload: NewTransactionInput) => Promise<void>;
 };
 
 export function RecentTransactions({
   transactions,
+  totalCount,
+  isShowingFullHistory,
+  onToggleHistory,
   onDeleteTransaction,
+  onEditTransaction,
 }: RecentTransactionsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
     const confirmed = window.confirm("Delete this transaction?");
@@ -42,10 +51,88 @@ export function RecentTransactions({
     }
   }
 
+  async function handleEdit(item: Transaction) {
+    const typeInput = window.prompt("Type (income or expense)", item.type);
+    if (!typeInput) {
+      return;
+    }
+
+    const nextType = typeInput.toLowerCase();
+    if (nextType !== "income" && nextType !== "expense") {
+      window.alert("Type must be either income or expense.");
+      return;
+    }
+
+    const amountInput = window.prompt("Amount", String(item.amount));
+    if (!amountInput) {
+      return;
+    }
+
+    const amount = Number(amountInput);
+    if (Number.isNaN(amount) || amount <= 0) {
+      window.alert("Amount must be a positive number.");
+      return;
+    }
+
+    const categoryInput = window.prompt(
+      `Category (${CATEGORY_SUGGESTIONS.join(", ")})`,
+      item.category,
+    );
+    if (!categoryInput) {
+      return;
+    }
+
+    const matchedCategory = CATEGORY_SUGGESTIONS.find(
+      (category) => category.toLowerCase() === categoryInput.toLowerCase(),
+    );
+    if (!matchedCategory) {
+      window.alert("Invalid category.");
+      return;
+    }
+
+    const dateInput = window.prompt("Date (YYYY-MM-DD)", item.date);
+    if (!dateInput) {
+      return;
+    }
+
+    const descriptionInput = window.prompt("Description", item.description);
+    if (!descriptionInput) {
+      return;
+    }
+
+    setEditingId(item.id);
+    try {
+      await onEditTransaction(item.id, {
+        type: nextType,
+        amount,
+        category: matchedCategory,
+        date: dateInput,
+        description: descriptionInput.trim(),
+      });
+    } finally {
+      setEditingId(null);
+    }
+  }
+
   return (
     <Card className="border-white/10 bg-[#111b2e]/80">
       <CardHeader>
-        <CardTitle className="text-lg">Recent Transactions</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-lg">
+            {isShowingFullHistory ? "Full Transaction History" : "Recent Transactions"}
+          </CardTitle>
+          {totalCount > 8 ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onToggleHistory}
+              className="text-xs"
+            >
+              {isShowingFullHistory ? "Show Last 8" : `View Full History (${totalCount})`}
+            </Button>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -56,7 +143,7 @@ export function RecentTransactions({
               <TableHead>Category</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="w-[76px] text-right">Action</TableHead>
+              <TableHead className="w-[140px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -90,11 +177,29 @@ export function RecentTransactions({
                     type="button"
                     size="sm"
                     variant="ghost"
+                    className="mr-1 text-cyan-300 hover:bg-cyan-500/15 hover:text-cyan-200"
+                    disabled={editingId === item.id || deletingId === item.id}
+                    onClick={() => handleEdit(item)}
+                  >
+                    {editingId === item.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Pencil className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
                     className="text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"
-                    disabled={deletingId === item.id}
+                    disabled={deletingId === item.id || editingId === item.id}
                     onClick={() => handleDelete(item.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {deletingId === item.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </Button>
                 </TableCell>
               </TableRow>

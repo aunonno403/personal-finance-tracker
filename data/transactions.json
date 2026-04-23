@@ -119,7 +119,7 @@
   {
     "type": "expense",
     "amount": 12,
-    "category": "cigarettes",
+    "category": "Cigarettes",
     "date": "2026-04-13",
     "description": "Lucky Strike white-1",
     "id": "99d54213-db93-4b30-8107-ae900099c679",
@@ -128,7 +128,7 @@
   {
     "type": "expense",
     "amount": 1500,
-    "category": "cigarettes",
+    "category": "Cigarettes",
     "date": "2026-04-13",
     "description": "lucky Strikes",
     "id": "342e3f54-fb45-4d3a-94bc-d9dcb80af38a",
@@ -136,11 +136,20 @@
   },
   {
     "type": "expense",
-    "amount": 50,
-    "category": "cigarettes",
+    "amount": 65,
+    "category": "Cigarettes",
     "date": "2026-04-21",
     "description": "Gold leaf & Lucky Strikes",
     "id": "3382d77a-526f-4502-a2e2-43ae7967aa46",
     "createdAt": "2026-04-21T04:30:58.359Z"
+  },
+  {
+    "type": "expense",
+    "amount": 150,
+    "category": "Cigarettes",
+    "date": "2026-04-23",
+    "description": "N/A",
+    "id": "c8803fc0-bfa2-4321-8a15-a764339bd8db",
+    "createdAt": "2026-04-23T16:06:42.745Z"
   }
 ]

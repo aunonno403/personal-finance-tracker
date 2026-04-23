@@ -14,12 +14,15 @@ import {
   DashboardPayload,
   MonthlyTrendItem,
   NewTransactionInput,
+  Transaction,
 } from "@/lib/types/finance";
 
 export default function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
   const [distribution, setDistribution] = useState<CategoryDistributionItem[]>([]);
   const [trend, setTrend] = useState<MonthlyTrendItem[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [showFullHistory, setShowFullHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -27,13 +30,14 @@ export default function HomePage() {
   const loadAll = useCallback(async () => {
     setError("");
 
-    const [dashboardResponse, distributionResponse, trendResponse] = await Promise.all([
+    const [dashboardResponse, distributionResponse, trendResponse, transactionsResponse] = await Promise.all([
       fetch("/api/dashboard", { cache: "no-store" }),
       fetch("/api/analytics/category-distribution", { cache: "no-store" }),
       fetch("/api/analytics/monthly-trend", { cache: "no-store" }),
+      fetch("/api/transactions", { cache: "no-store" }),
     ]);
 
-    if (!dashboardResponse.ok || !distributionResponse.ok || !trendResponse.ok) {
+    if (!dashboardResponse.ok || !distributionResponse.ok || !trendResponse.ok || !transactionsResponse.ok) {
       throw new Error("Could not load dashboard data.");
     }
 
@@ -42,10 +46,14 @@ export default function HomePage() {
       distribution: CategoryDistributionItem[];
     };
     const trendData = (await trendResponse.json()) as { trend: MonthlyTrendItem[] };
+    const transactionsData = (await transactionsResponse.json()) as {
+      transactions: Transaction[];
+    };
 
     setDashboard(dashboardData);
     setDistribution(distributionData.distribution);
     setTrend(trendData.trend);
+    setAllTransactions(transactionsData.transactions);
   }, []);
 
   useEffect(() => {
@@ -83,6 +91,20 @@ export default function HomePage() {
 
     if (!response.ok) {
       throw new Error("Delete failed");
+    }
+
+    await loadAll();
+  }
+
+  async function editTransaction(id: string, payload: NewTransactionInput) {
+    const response = await fetch(`/api/transactions?id=${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error("Update failed");
     }
 
     await loadAll();
@@ -177,8 +199,12 @@ export default function HomePage() {
       </section>
 
       <RecentTransactions
-        transactions={dashboard.recentTransactions}
+        transactions={showFullHistory ? allTransactions : dashboard.recentTransactions}
+        totalCount={allTransactions.length}
+        isShowingFullHistory={showFullHistory}
+        onToggleHistory={() => setShowFullHistory((value) => !value)}
         onDeleteTransaction={deleteTransaction}
+        onEditTransaction={editTransaction}
       />
     </main>
   );

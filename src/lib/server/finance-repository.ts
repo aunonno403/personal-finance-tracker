@@ -52,6 +52,29 @@ export async function deleteTransactionById(id: string): Promise<boolean> {
   return true;
 }
 
+export async function updateTransactionById(
+  id: string,
+  input: NewTransactionInput,
+): Promise<Transaction | null> {
+  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+  const index = transactions.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const current = transactions[index];
+  const updated: Transaction = {
+    ...current,
+    ...input,
+  };
+
+  transactions[index] = updated;
+  await writeJsonFile(TRANSACTIONS_FILE, transactions);
+
+  return updated;
+}
+
 export async function getBudgetSettings(): Promise<BudgetSettings> {
   return readJsonFile<BudgetSettings>(BUDGET_FILE, budgetFallback);
 }
