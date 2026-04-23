@@ -76,6 +76,18 @@ export default function HomePage() {
     await loadAll();
   }
 
+  async function deleteTransaction(id: string) {
+    const response = await fetch(`/api/transactions?id=${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Delete failed");
+    }
+
+    await loadAll();
+  }
+
   async function updateBudget(monthlyBudget: number) {
     const response = await fetch("/api/budget", {
       method: "PUT",
@@ -164,7 +176,10 @@ export default function HomePage() {
         <MonthlyTrendBar data={trend} />
       </section>
 
-      <RecentTransactions transactions={dashboard.recentTransactions} />
+      <RecentTransactions
+        transactions={dashboard.recentTransactions}
+        onDeleteTransaction={deleteTransaction}
+      />
     </main>
   );
 }

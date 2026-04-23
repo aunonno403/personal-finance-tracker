@@ -40,6 +40,18 @@ export async function addTransaction(input: NewTransactionInput): Promise<Transa
   return transaction;
 }
 
+export async function deleteTransactionById(id: string): Promise<boolean> {
+  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+  const nextTransactions = transactions.filter((item) => item.id !== id);
+
+  if (nextTransactions.length === transactions.length) {
+    return false;
+  }
+
+  await writeJsonFile(TRANSACTIONS_FILE, nextTransactions);
+  return true;
+}
+
 export async function getBudgetSettings(): Promise<BudgetSettings> {
   return readJsonFile<BudgetSettings>(BUDGET_FILE, budgetFallback);
 }
