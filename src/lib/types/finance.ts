@@ -8,7 +8,7 @@ export const CATEGORY_SUGGESTIONS = [
   "Education",
   "Bills",
   "Others",
-  "cigarettes",
+  "Cigarettes",
 ] as const;
 
 export type Category = (typeof CATEGORY_SUGGESTIONS)[number];
