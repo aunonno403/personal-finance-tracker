@@ -1,4 +1,4 @@
-export const CATEGORY_SUGGESTIONS = [
+export const EXPENSE_CATEGORIES = [
   "Food",
   "Transport",
   "Rent",
@@ -11,7 +11,24 @@ export const CATEGORY_SUGGESTIONS = [
   "Cigarettes",
 ] as const;
 
-export type Category = (typeof CATEGORY_SUGGESTIONS)[number];
+export const INCOME_CATEGORIES = [
+  "Salary",
+  "Freelance",
+  "Investment",
+  "Bonus",
+  "Gift",
+  "Refund",
+  "Others",
+] as const;
+
+export const CATEGORY_SUGGESTIONS = [
+  ...EXPENSE_CATEGORIES,
+  ...INCOME_CATEGORIES,
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+export type IncomeCategory = (typeof INCOME_CATEGORIES)[number];
+export type Category = ExpenseCategory | IncomeCategory;
 export type TransactionType = "income" | "expense";
 
 export type Transaction = {

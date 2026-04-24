@@ -13,7 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CATEGORY_SUGGESTIONS, NewTransactionInput, Transaction } from "@/lib/types/finance";
+import {
+  CATEGORY_SUGGESTIONS,
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+  NewTransactionInput,
+  Transaction,
+} from "@/lib/types/finance";
 import { formatBDT } from "@/lib/utils/currency";
 import { formatHumanDate } from "@/lib/utils/date";
 
@@ -74,15 +80,18 @@ export function RecentTransactions({
       return;
     }
 
+    const categoryOptions =
+      nextType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
     const categoryInput = window.prompt(
-      `Category (${CATEGORY_SUGGESTIONS.join(", ")})`,
+      `Category (${categoryOptions.join(", ")})`,
       item.category,
     );
     if (!categoryInput) {
       return;
     }
 
-    const matchedCategory = CATEGORY_SUGGESTIONS.find(
+    const matchedCategory = categoryOptions.find(
       (category) => category.toLowerCase() === categoryInput.toLowerCase(),
     );
     if (!matchedCategory) {

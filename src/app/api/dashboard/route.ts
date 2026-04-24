@@ -6,12 +6,11 @@ import {
 } from "@/lib/server/finance-repository";
 
 export async function GET() {
-  const [transactions, budget] = await Promise.all([
-    getTransactions(),
+  const [summary, budget, transactions] = await Promise.all([
+    getDashboardSummary(),
     getBudgetSettings(),
+    getTransactions(),
   ]);
-
-  const summary = getDashboardSummary(transactions);
 
   return NextResponse.json({
     summary,

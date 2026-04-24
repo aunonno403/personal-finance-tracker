@@ -151,5 +151,32 @@
     "description": "N/A",
     "id": "c8803fc0-bfa2-4321-8a15-a764339bd8db",
     "createdAt": "2026-04-23T16:06:42.745Z"
+  },
+  {
+    "type": "expense",
+    "amount": 60,
+    "category": "Cigarettes",
+    "date": "2026-04-24",
+    "description": "N/A",
+    "id": "d29f8326-c056-452c-9d42-f04efa94eee8",
+    "createdAt": "2026-04-24T16:31:51.511Z"
+  },
+  {
+    "type": "expense",
+    "amount": 50000,
+    "category": "Cigarettes",
+    "date": "2026-04-24",
+    "description": "cigar",
+    "id": "9ca96dbc-c257-4ce4-9068-539034673316",
+    "createdAt": "2026-04-24T17:02:34.159Z"
+  },
+  {
+    "type": "income",
+    "amount": 100000,
+    "category": "Salary",
+    "date": "2026-04-24",
+    "description": "monthly stipend",
+    "id": "0f6954f3-c935-4f0b-b63c-ef763639fd0d",
+    "createdAt": "2026-04-24T17:03:35.173Z"
   }
 ]

@@ -8,6 +8,7 @@ import { AddTransactionForm } from "@/components/dashboard/add-transaction-form"
 import { BudgetProgress } from "@/components/dashboard/budget-progress";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
+import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { Button } from "@/components/ui/button";
 import {
   CategoryDistributionItem,
@@ -26,35 +27,60 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [insightsRefreshTrigger, setInsightsRefreshTrigger] = useState(0);
 
-  const loadAll = useCallback(async () => {
-    setError("");
-
-    const [dashboardResponse, distributionResponse, trendResponse, transactionsResponse] = await Promise.all([
-      fetch("/api/dashboard", { cache: "no-store" }),
-      fetch("/api/analytics/category-distribution", { cache: "no-store" }),
-      fetch("/api/analytics/monthly-trend", { cache: "no-store" }),
-      fetch("/api/transactions", { cache: "no-store" }),
-    ]);
-
-    if (!dashboardResponse.ok || !distributionResponse.ok || !trendResponse.ok || !transactionsResponse.ok) {
+  const loadDashboardSummary = useCallback(async () => {
+    const dashboardResponse = await fetch("/api/dashboard", { cache: "no-store" });
+    if (!dashboardResponse.ok) {
       throw new Error("Could not load dashboard data.");
     }
 
     const dashboardData = (await dashboardResponse.json()) as DashboardPayload;
+    setDashboard(dashboardData);
+  }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    const [distributionResponse, trendResponse] = await Promise.all([
+      fetch("/api/analytics/category-distribution", { cache: "no-store" }),
+      fetch("/api/analytics/monthly-trend", { cache: "no-store" }),
+    ]);
+
+    if (!distributionResponse.ok || !trendResponse.ok) {
+      throw new Error("Could not load analytics data.");
+    }
+
     const distributionData = (await distributionResponse.json()) as {
       distribution: CategoryDistributionItem[];
     };
     const trendData = (await trendResponse.json()) as { trend: MonthlyTrendItem[] };
+
+    setDistribution(distributionData.distribution);
+    setTrend(trendData.trend);
+  }, []);
+
+  const loadTransactions = useCallback(async () => {
+    const transactionsResponse = await fetch("/api/transactions", { cache: "no-store" });
+    if (!transactionsResponse.ok) {
+      throw new Error("Could not load transactions.");
+    }
+
     const transactionsData = (await transactionsResponse.json()) as {
       transactions: Transaction[];
     };
 
-    setDashboard(dashboardData);
-    setDistribution(distributionData.distribution);
-    setTrend(trendData.trend);
     setAllTransactions(transactionsData.transactions);
   }, []);
+
+  const loadAll = useCallback(async () => {
+    setError("");
+
+    await Promise.all([loadDashboardSummary(), loadAnalytics(), loadTransactions()]);
+  }, [loadDashboardSummary, loadAnalytics, loadTransactions]);
+
+  const refreshAfterTransactionMutation = useCallback(async () => {
+    await Promise.all([loadDashboardSummary(), loadAnalytics(), loadTransactions()]);
+    setInsightsRefreshTrigger((t) => t + 1);
+  }, [loadDashboardSummary, loadAnalytics, loadTransactions]);
 
   useEffect(() => {
     async function initialize() {
@@ -81,7 +107,7 @@ export default function HomePage() {
       throw new Error("Save failed");
     }
 
-    await loadAll();
+    await refreshAfterTransactionMutation();
   }
 
   async function deleteTransaction(id: string) {
@@ -93,7 +119,7 @@ export default function HomePage() {
       throw new Error("Delete failed");
     }
 
-    await loadAll();
+    await refreshAfterTransactionMutation();
   }
 
   async function editTransaction(id: string, payload: NewTransactionInput) {
@@ -107,7 +133,7 @@ export default function HomePage() {
       throw new Error("Update failed");
     }
 
-    await loadAll();
+    await refreshAfterTransactionMutation();
   }
 
   async function updateBudget(monthlyBudget: number) {
@@ -121,7 +147,7 @@ export default function HomePage() {
       throw new Error("Budget update failed");
     }
 
-    await loadAll();
+    await loadDashboardSummary();
   }
 
   async function refreshDashboard() {
@@ -182,6 +208,8 @@ export default function HomePage() {
         income={dashboard.summary.totalIncomeThisMonth}
         expense={dashboard.summary.totalExpenseThisMonth}
       />
+
+      <InsightsPanel refreshTrigger={insightsRefreshTrigger} />
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <AddTransactionForm onTransactionAdded={addTransaction} />

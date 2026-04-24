@@ -1,4 +1,4 @@
-import { format, subMonths } from "date-fns";
+import { format, subMonths, parseISO } from "date-fns";
 import { randomUUID } from "crypto";
 import {
   BudgetSettings,
@@ -20,12 +20,28 @@ const budgetFallback: BudgetSettings = {
   currency: "BDT",
 };
 
-export async function getTransactions(): Promise<Transaction[]> {
+// Determine which adapter to use based on environment
+const useMongoDb = process.env.DB_TYPE === "mongodb";
+
+// Import MongoDB adapter dynamically if needed
+let mongoAdapter: typeof import("@/lib/server/adapters/mongodb-repository") | null =
+  null;
+
+async function getMongoAdapter() {
+  if (!mongoAdapter && useMongoDb) {
+    mongoAdapter =
+      await import("@/lib/server/adapters/mongodb-repository");
+  }
+  return mongoAdapter;
+}
+
+// JSON-based implementation (fallback)
+async function getTransactionsJson(): Promise<Transaction[]> {
   const data = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
   return data.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-export async function addTransaction(input: NewTransactionInput): Promise<Transaction> {
+async function addTransactionJson(input: NewTransactionInput): Promise<Transaction> {
   const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
 
   const transaction: Transaction = {
@@ -40,7 +56,7 @@ export async function addTransaction(input: NewTransactionInput): Promise<Transa
   return transaction;
 }
 
-export async function deleteTransactionById(id: string): Promise<boolean> {
+async function deleteTransactionByIdJson(id: string): Promise<boolean> {
   const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
   const nextTransactions = transactions.filter((item) => item.id !== id);
 
@@ -52,7 +68,7 @@ export async function deleteTransactionById(id: string): Promise<boolean> {
   return true;
 }
 
-export async function updateTransactionById(
+async function updateTransactionByIdJson(
   id: string,
   input: NewTransactionInput,
 ): Promise<Transaction | null> {
@@ -75,22 +91,8 @@ export async function updateTransactionById(
   return updated;
 }
 
-export async function getBudgetSettings(): Promise<BudgetSettings> {
-  return readJsonFile<BudgetSettings>(BUDGET_FILE, budgetFallback);
-}
-
-export async function updateBudgetSettings(monthlyBudget: number): Promise<BudgetSettings> {
-  const current = await getBudgetSettings();
-  const updated: BudgetSettings = {
-    ...current,
-    monthlyBudget,
-  };
-
-  await writeJsonFile(BUDGET_FILE, updated);
-  return updated;
-}
-
-export function getDashboardSummary(transactions: Transaction[]): DashboardSummary {
+async function getDashboardSummaryJson(): Promise<DashboardSummary> {
+  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
   const monthKey = format(new Date(), "yyyy-MM");
   let currentBalance = 0;
   let totalIncomeThisMonth = 0;
@@ -120,13 +122,13 @@ export function getDashboardSummary(transactions: Transaction[]): DashboardSumma
   };
 }
 
-export function getCategoryDistribution(
-  transactions: Transaction[],
-): CategoryDistributionItem[] {
+async function getCategoryDistributionJson(): Promise<CategoryDistributionItem[]> {
+  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+  const monthKey = format(new Date(), "yyyy-MM");
   const totals = new Map<string, number>();
 
   transactions
-    .filter((item) => item.type === "expense")
+    .filter((item) => item.type === "expense" && getMonthKey(item.date) === monthKey)
     .forEach((item) => {
       const prev = totals.get(item.category) ?? 0;
       totals.set(item.category, prev + item.amount);
@@ -140,7 +142,8 @@ export function getCategoryDistribution(
     .sort((a, b) => b.total - a.total);
 }
 
-export function getMonthlyTrend(transactions: Transaction[]): MonthlyTrendItem[] {
+async function getMonthlyTrendJson(): Promise<MonthlyTrendItem[]> {
+  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
   const now = new Date();
   const monthKeys = Array.from({ length: 6 }, (_, index) =>
     format(subMonths(now, 5 - index), "yyyy-MM"),
@@ -171,4 +174,109 @@ export function getMonthlyTrend(transactions: Transaction[]): MonthlyTrendItem[]
   }
 
   return monthKeys.map((key) => bucket.get(key) as MonthlyTrendItem);
+}
+
+async function getBudgetSettingsJson(): Promise<BudgetSettings> {
+  return readJsonFile<BudgetSettings>(BUDGET_FILE, budgetFallback);
+}
+
+async function updateBudgetSettingsJson(
+  settings: BudgetSettings,
+): Promise<BudgetSettings> {
+  await writeJsonFile(BUDGET_FILE, settings);
+  return settings;
+}
+
+// Adapter routing functions
+export async function getTransactions(): Promise<Transaction[]> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.getTransactions();
+    }
+  }
+  return getTransactionsJson();
+}
+
+export async function addTransaction(input: NewTransactionInput): Promise<Transaction> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.addTransaction(input);
+    }
+  }
+  return addTransactionJson(input);
+}
+
+export async function deleteTransactionById(id: string): Promise<boolean> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.deleteTransactionById(id);
+    }
+  }
+  return deleteTransactionByIdJson(id);
+}
+
+export async function updateTransactionById(
+  id: string,
+  input: NewTransactionInput,
+): Promise<Transaction | null> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.updateTransactionById(id, input);
+    }
+  }
+  return updateTransactionByIdJson(id, input);
+}
+
+export async function getDashboardSummary(): Promise<DashboardSummary> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.getDashboardSummary();
+    }
+  }
+  return getDashboardSummaryJson();
+}
+
+export async function getCategoryDistribution(): Promise<CategoryDistributionItem[]> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.getCategoryDistribution();
+    }
+  }
+  return getCategoryDistributionJson();
+}
+
+export async function getMonthlyTrend(): Promise<MonthlyTrendItem[]> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.getMonthlyTrend();
+    }
+  }
+  return getMonthlyTrendJson();
+}
+
+export async function getBudgetSettings(): Promise<BudgetSettings> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.getBudgetSettings();
+    }
+  }
+  return getBudgetSettingsJson();
+}
+
+export async function updateBudgetSettings(settings: BudgetSettings): Promise<BudgetSettings> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.updateBudgetSettings(settings);
+    }
+  }
+  return updateBudgetSettingsJson(settings);
 }

@@ -19,6 +19,11 @@ export async function PUT(request: Request) {
     );
   }
 
-  const budget = await updateBudgetSettings(Number(body.monthlyBudget));
+  const currentSettings = await getBudgetSettings();
+  const updatedSettings = {
+    ...currentSettings,
+    monthlyBudget: Number(body.monthlyBudget),
+  };
+  const budget = await updateBudgetSettings(updatedSettings);
   return NextResponse.json({ budget });
 }

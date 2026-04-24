@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-import {
-  getCategoryDistribution,
-  getTransactions,
-} from "@/lib/server/finance-repository";
+import { getCategoryDistribution } from "@/lib/server/finance-repository";
 
 export async function GET() {
-  const transactions = await getTransactions();
-  const distribution = getCategoryDistribution(transactions);
+  const distribution = await getCategoryDistribution();
   return NextResponse.json({ distribution });
 }

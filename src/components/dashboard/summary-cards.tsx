@@ -13,11 +13,12 @@ export function SummaryCards({ balance, income, expense }: SummaryCardsProps) {
     <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <Card className="border-white/10 bg-[#111b2e]/80 shadow-2xl shadow-cyan-900/10 backdrop-blur">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-slate-300">Current Balance</CardTitle>
+          <CardTitle className="text-sm font-medium text-slate-300">Current Balance (Lifetime)</CardTitle>
           <Wallet className="h-5 w-5 text-cyan-300" />
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-semibold tracking-tight text-cyan-100">{formatBDT(balance)}</p>
+          <p className="mt-1 text-xs text-slate-400">Calculated from all recorded income and expenses.</p>
         </CardContent>
       </Card>
 
