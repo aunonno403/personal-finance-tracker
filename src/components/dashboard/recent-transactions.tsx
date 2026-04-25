@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EditTransactionModal } from "@/components/dashboard/edit-transaction-modal";
 import {
   CATEGORY_SUGGESTIONS,
   EXPENSE_CATEGORIES,
@@ -42,6 +43,9 @@ export function RecentTransactions({
 }: RecentTransactionsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   async function handleDelete(id: string) {
     const confirmed = window.confirm("Delete this transaction?");
@@ -58,68 +62,22 @@ export function RecentTransactions({
   }
 
   async function handleEdit(item: Transaction) {
-    const typeInput = window.prompt("Type (income or expense)", item.type);
-    if (!typeInput) {
+    setEditingTransaction(item);
+    setIsEditModalOpen(true);
+  }
+
+  async function handleSaveEdit(payload: NewTransactionInput) {
+    if (!editingTransaction) {
       return;
     }
 
-    const nextType = typeInput.toLowerCase();
-    if (nextType !== "income" && nextType !== "expense") {
-      window.alert("Type must be either income or expense.");
-      return;
-    }
-
-    const amountInput = window.prompt("Amount", String(item.amount));
-    if (!amountInput) {
-      return;
-    }
-
-    const amount = Number(amountInput);
-    if (Number.isNaN(amount) || amount <= 0) {
-      window.alert("Amount must be a positive number.");
-      return;
-    }
-
-    const categoryOptions =
-      nextType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-
-    const categoryInput = window.prompt(
-      `Category (${categoryOptions.join(", ")})`,
-      item.category,
-    );
-    if (!categoryInput) {
-      return;
-    }
-
-    const matchedCategory = categoryOptions.find(
-      (category) => category.toLowerCase() === categoryInput.toLowerCase(),
-    );
-    if (!matchedCategory) {
-      window.alert("Invalid category.");
-      return;
-    }
-
-    const dateInput = window.prompt("Date (YYYY-MM-DD)", item.date);
-    if (!dateInput) {
-      return;
-    }
-
-    const descriptionInput = window.prompt("Description", item.description);
-    if (!descriptionInput) {
-      return;
-    }
-
-    setEditingId(item.id);
+    setIsSavingEdit(true);
     try {
-      await onEditTransaction(item.id, {
-        type: nextType,
-        amount,
-        category: matchedCategory,
-        date: dateInput,
-        description: descriptionInput.trim(),
-      });
+      await onEditTransaction(editingTransaction.id, payload);
     } finally {
-      setEditingId(null);
+      setIsSavingEdit(false);
+      setEditingTransaction(null);
+      setIsEditModalOpen(false);
     }
   }
 
@@ -223,6 +181,17 @@ export function RecentTransactions({
           </TableBody>
         </Table>
       </CardContent>
+
+      <EditTransactionModal
+        transaction={editingTransaction}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        onSave={handleSaveEdit}
+        loading={isSavingEdit}
+      />
     </Card>
   );
 }

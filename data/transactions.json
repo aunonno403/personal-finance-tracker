@@ -163,7 +163,7 @@
   },
   {
     "type": "expense",
-    "amount": 50000,
+    "amount": 500,
     "category": "Cigarettes",
     "date": "2026-04-24",
     "description": "cigar",
@@ -178,5 +178,14 @@
     "description": "monthly stipend",
     "id": "0f6954f3-c935-4f0b-b63c-ef763639fd0d",
     "createdAt": "2026-04-24T17:03:35.173Z"
+  },
+  {
+    "type": "expense",
+    "amount": 200000,
+    "category": "Others",
+    "date": "2026-04-25",
+    "description": "Divorce settlement",
+    "id": "43c64ad5-9400-4f36-88b5-bd1b365aee51",
+    "createdAt": "2026-04-25T08:01:52.353Z"
   }
 ]

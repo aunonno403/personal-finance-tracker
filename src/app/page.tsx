@@ -9,6 +9,7 @@ import { BudgetProgress } from "@/components/dashboard/budget-progress";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
+import { TransactionFilters, type TransactionFilters as TransactionFiltersType } from "@/components/dashboard/transaction-filters";
 import { Button } from "@/components/ui/button";
 import {
   CategoryDistributionItem,
@@ -28,6 +29,14 @@ export default function HomePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [insightsRefreshTrigger, setInsightsRefreshTrigger] = useState(0);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<TransactionFiltersType>({
+    searchQuery: "",
+    type: "all",
+    category: "all",
+    dateFrom: "",
+    dateTo: "",
+  });
 
   const loadDashboardSummary = useCallback(async () => {
     const dashboardResponse = await fetch("/api/dashboard", { cache: "no-store" });
@@ -159,6 +168,38 @@ export default function HomePage() {
     }
   }
 
+  const getFilteredTransactions = useCallback(() => {
+    let filtered = showFullHistory ? allTransactions : dashboard?.recentTransactions || [];
+
+    // Filter by type
+    if (filters.type !== "all") {
+      filtered = filtered.filter((t) => t.type === filters.type);
+    }
+
+    // Filter by category
+    if (filters.category !== "all") {
+      filtered = filtered.filter((t) => t.category === filters.category);
+    }
+
+    // Filter by search query (description)
+    if (filters.searchQuery.trim() !== "") {
+      const query = filters.searchQuery.toLowerCase();
+      filtered = filtered.filter((t) =>
+        t.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by date range
+    if (filters.dateFrom) {
+      filtered = filtered.filter((t) => t.date >= filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      filtered = filtered.filter((t) => t.date <= filters.dateTo);
+    }
+
+    return filtered;
+  }, [allTransactions, dashboard?.recentTransactions, showFullHistory, filters]);
+
   if (loading || !dashboard) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center p-6">
@@ -226,8 +267,15 @@ export default function HomePage() {
         <MonthlyTrendBar data={trend} />
       </section>
 
+      <TransactionFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        isOpen={isFiltersOpen}
+        onToggle={() => setIsFiltersOpen((v) => !v)}
+      />
+
       <RecentTransactions
-        transactions={showFullHistory ? allTransactions : dashboard.recentTransactions}
+        transactions={getFilteredTransactions()}
         totalCount={allTransactions.length}
         isShowingFullHistory={showFullHistory}
         onToggleHistory={() => setShowFullHistory((value) => !value)}
