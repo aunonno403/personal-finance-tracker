@@ -7,3 +7,7 @@ export function getMonthKey(dateString: string): string {
 export function formatHumanDate(dateString: string): string {
   return format(parseISO(dateString), "dd MMM yyyy");
 }
+
+export function formatHumanDateTime(dateString: string): string {
+  return format(new Date(dateString), "dd MMM yyyy, hh:mm a");
+}

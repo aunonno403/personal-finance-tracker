@@ -208,6 +208,69 @@ export async function addTransaction(input: NewTransactionInput): Promise<Transa
   return addTransactionJson(input);
 }
 
+export async function addTransactionsBulk(inputs: NewTransactionInput[]): Promise<Transaction[]> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      const created: Transaction[] = [];
+      for (const input of inputs) {
+        // call adapter.addTransaction for each item
+        const t = await adapter.addTransaction(input);
+        created.push(t);
+      }
+      return created;
+    }
+  }
+
+  // JSON fallback: append all transactions and write once
+  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+  const created: Transaction[] = [];
+
+  for (const input of inputs) {
+    const transaction: Transaction = {
+      ...input,
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    transactions.push(transaction);
+    created.push(transaction);
+  }
+
+  await writeJsonFile(TRANSACTIONS_FILE, transactions);
+  return created;
+}
+
+export async function deleteTransactionsBulk(ids: string[]): Promise<number> {
+  if (ids.length === 0) {
+    return 0;
+  }
+
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      let deleted = 0;
+      for (const id of ids) {
+        const result = await adapter.deleteTransactionById(id);
+        if (result) {
+          deleted += 1;
+        }
+      }
+      return deleted;
+    }
+  }
+
+  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+  const idSet = new Set(ids);
+  const nextTransactions = transactions.filter((item) => !idSet.has(item.id));
+  const deleted = transactions.length - nextTransactions.length;
+
+  if (deleted > 0) {
+    await writeJsonFile(TRANSACTIONS_FILE, nextTransactions);
+  }
+
+  return deleted;
+}
+
 export async function deleteTransactionById(id: string): Promise<boolean> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();

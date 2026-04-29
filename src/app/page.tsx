@@ -6,6 +6,7 @@ import { ExpenseCategoryPie } from "@/components/charts/expense-category-pie";
 import { MonthlyTrendBar } from "@/components/charts/monthly-trend-bar";
 import { AddTransactionForm } from "@/components/dashboard/add-transaction-form";
 import { BudgetProgress } from "@/components/dashboard/budget-progress";
+import { ImportHistoryPanel } from "@/components/dashboard/import-history-panel";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import {
   CategoryDistributionItem,
   DashboardPayload,
+  ImportHistoryEntry,
   MonthlyTrendItem,
   NewTransactionInput,
   Transaction,
@@ -30,6 +32,8 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [insightsRefreshTrigger, setInsightsRefreshTrigger] = useState(0);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [importHistory, setImportHistory] = useState<ImportHistoryEntry[]>([]);
+  const [undoingImportId, setUndoingImportId] = useState<string | null>(null);
   const [filters, setFilters] = useState<TransactionFiltersType>({
     searchQuery: "",
     type: "all",
@@ -105,6 +109,26 @@ export default function HomePage() {
     void initialize();
   }, [loadAll]);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("pft-import-history");
+      if (raw) {
+        const parsed = JSON.parse(raw) as ImportHistoryEntry[];
+        setImportHistory(Array.isArray(parsed) ? parsed : []);
+      }
+    } catch {
+      setImportHistory([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("pft-import-history", JSON.stringify(importHistory));
+    } catch {
+      // ignore storage failures
+    }
+  }, [importHistory]);
+
   async function addTransaction(payload: NewTransactionInput) {
     const response = await fetch("/api/transactions", {
       method: "POST",
@@ -120,20 +144,51 @@ export default function HomePage() {
   }
 
   async function importTransactions(payloads: NewTransactionInput[]) {
-    // Bulk import: post all without refreshing each time, then refresh once
-    for (const payload of payloads) {
-      const response = await fetch("/api/transactions", {
-        method: "POST",
+    const response = await fetch("/api/transactions/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payloads),
+    });
+
+    if (!response.ok) {
+      throw new Error("Bulk import failed");
+    }
+
+    const result = (await response.json()) as { created: Transaction[] };
+    const createdIds = result.created.map((item) => item.id);
+    const historyEntry: ImportHistoryEntry = {
+      id: globalThis.crypto?.randomUUID?.() ?? `import-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      count: result.created.length,
+      transactionIds: createdIds,
+    };
+
+    setImportHistory((current) => [historyEntry, ...current].slice(0, 20));
+    await refreshAfterTransactionMutation();
+  }
+
+  async function undoImport(entry: ImportHistoryEntry) {
+    if (entry.transactionIds.length === 0) {
+      return;
+    }
+
+    setUndoingImportId(entry.id);
+    try {
+      const response = await fetch("/api/transactions/bulk", {
+        method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ids: entry.transactionIds }),
       });
 
       if (!response.ok) {
-        throw new Error("One of the imports failed");
+        throw new Error("Undo failed");
       }
-    }
 
-    await refreshAfterTransactionMutation();
+      setImportHistory((current) => current.filter((item) => item.id !== entry.id));
+      await refreshAfterTransactionMutation();
+    } finally {
+      setUndoingImportId(null);
+    }
   }
 
   async function deleteTransaction(id: string) {
@@ -283,6 +338,8 @@ export default function HomePage() {
         <ExpenseCategoryPie data={distribution} />
         <MonthlyTrendBar data={trend} />
       </section>
+
+      <ImportHistoryPanel entries={importHistory} onUndo={undoImport} undoingId={undoingImportId} />
 
       <TransactionFilters
         filters={filters}

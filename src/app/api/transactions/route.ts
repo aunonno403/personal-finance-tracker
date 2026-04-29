@@ -24,6 +24,7 @@ export async function POST(request: Request) {
   const transaction = await addTransaction(validation.payload);
 
   return NextResponse.json({ transaction }, { status: 201 });
+  // No logic changes, just touching the file
 }
 
 export async function DELETE(request: Request) {

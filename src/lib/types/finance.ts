@@ -78,3 +78,10 @@ export type DashboardPayload = {
   budget: BudgetSettings;
   recentTransactions: Transaction[];
 };
+
+export type ImportHistoryEntry = {
+  id: string;
+  createdAt: string;
+  count: number;
+  transactionIds: string[];
+};

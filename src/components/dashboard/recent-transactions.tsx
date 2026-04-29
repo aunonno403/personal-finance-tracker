@@ -16,6 +16,7 @@ import {
 import { EditTransactionModal } from "@/components/dashboard/edit-transaction-modal";
 import { exportTransactionsToCSV } from "@/lib/utils/csv-export";
 import { parseCsvToTransactions } from "@/lib/utils/csv-import";
+import ImportPreviewModal from "@/components/dashboard/import-preview-modal";
 import {
   CATEGORY_SUGGESTIONS,
   EXPENSE_CATEGORIES,
@@ -54,6 +55,8 @@ export function RecentTransactions({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [previewItems, setPreviewItems] = useState<NewTransactionInput[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   async function handleDelete(id: string) {
     const confirmed = window.confirm("Delete this transaction?");
@@ -139,8 +142,7 @@ export function RecentTransactions({
                 className="hidden"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
-                  if (!file || !onImportTransactions) return;
-                  setIsImporting(true);
+                  if (!file) return;
                   try {
                     const text = await file.text();
                     const parsed = parseCsvToTransactions(text);
@@ -148,13 +150,12 @@ export function RecentTransactions({
                       window.alert("No valid rows found in CSV.");
                       return;
                     }
-                    await onImportTransactions(parsed);
-                    window.alert(`Imported ${parsed.length} transactions.`);
+                    setPreviewItems(parsed);
+                    setIsPreviewOpen(true);
                   } catch (err) {
                     console.error(err);
-                    window.alert("Import failed. Check CSV format.");
+                    window.alert("Failed to parse CSV.");
                   } finally {
-                    setIsImporting(false);
                     if (fileInputRef.current) fileInputRef.current.value = "";
                   }
                 }}
@@ -264,6 +265,30 @@ export function RecentTransactions({
         }}
         onSave={handleSaveEdit}
         loading={isSavingEdit}
+      />
+
+      <ImportPreviewModal
+        items={previewItems}
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setPreviewItems([]);
+        }}
+        loading={isImporting}
+        onConfirm={async (items) => {
+          if (!onImportTransactions) return;
+          setIsImporting(true);
+          try {
+            await onImportTransactions(items);
+            setIsPreviewOpen(false);
+            setPreviewItems([]);
+          } catch (err) {
+            console.error(err);
+            window.alert("Import failed. See console for details.");
+          } finally {
+            setIsImporting(false);
+          }
+        }}
       />
     </Card>
   );
