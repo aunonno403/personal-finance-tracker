@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Landmark, RefreshCcw } from "lucide-react";
+import { Landmark, LogOut, RefreshCcw } from "lucide-react";
 import { ExpenseCategoryPie } from "@/components/charts/expense-category-pie";
 import { MonthlyTrendBar } from "@/components/charts/monthly-trend-bar";
 import { AddTransactionForm } from "@/components/dashboard/add-transaction-form";
@@ -98,9 +98,15 @@ export default function HomePage() {
   useEffect(() => {
     async function initialize() {
       try {
+        const authResponse = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!authResponse.ok) {
+          window.location.href = "/login";
+          return;
+        }
+
         await loadAll();
       } catch {
-        setError("Failed to load data.");
+        setError("Failed to load dashboard data.");
       } finally {
         setLoading(false);
       }
@@ -240,6 +246,16 @@ export default function HomePage() {
     }
   }
 
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      window.localStorage.removeItem("pft-import-history");
+    } catch {
+      // no-op
+    }
+    window.location.href = "/login";
+  }
+
   const getFilteredTransactions = useCallback(() => {
     let filtered = showFullHistory ? allTransactions : dashboard?.recentTransactions || [];
 
@@ -272,10 +288,28 @@ export default function HomePage() {
     return filtered;
   }, [allTransactions, dashboard?.recentTransactions, showFullHistory, filters]);
 
-  if (loading || !dashboard) {
+  if (loading) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center p-6">
         <p className="text-slate-300">Loading finance dashboard...</p>
+      </main>
+    );
+  }
+
+  if (!dashboard) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center p-6">
+        <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-6 py-5 text-center text-rose-200">
+          <p className="text-sm font-medium">{error || "Unable to load dashboard."}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-4"
+            onClick={() => (window.location.href = "/login")}
+          >
+            Go to login
+          </Button>
+        </div>
       </main>
     );
   }
@@ -298,15 +332,21 @@ export default function HomePage() {
             </p>
           </div>
 
-          <Button
-            variant="secondary"
-            onClick={refreshDashboard}
-            disabled={refreshing}
-            className="w-full sm:w-auto"
-          >
-            <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Button
+              variant="secondary"
+              onClick={refreshDashboard}
+              disabled={refreshing}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            <Button variant="outline" onClick={logout} className="w-full sm:w-auto">
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-import { format, subMonths, parseISO } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { randomUUID } from "crypto";
 import {
   BudgetSettings,
@@ -14,38 +14,51 @@ import { readJsonFile, writeJsonFile } from "@/lib/server/json-store";
 const TRANSACTIONS_FILE = "transactions.json";
 const BUDGET_FILE = "budget.json";
 
+type BudgetStore = Record<string, BudgetSettings>;
+
 const budgetFallback: BudgetSettings = {
   monthlyBudget: 50000,
   warningThreshold: 0.8,
   currency: "BDT",
 };
 
-// Determine which adapter to use based on environment
 const useMongoDb = process.env.DB_TYPE === "mongodb";
 
-// Import MongoDB adapter dynamically if needed
-let mongoAdapter: typeof import("@/lib/server/adapters/mongodb-repository") | null =
-  null;
+let mongoAdapter: typeof import("@/lib/server/adapters/mongodb-repository") | null = null;
 
 async function getMongoAdapter() {
   if (!mongoAdapter && useMongoDb) {
-    mongoAdapter =
-      await import("@/lib/server/adapters/mongodb-repository");
+    mongoAdapter = await import("@/lib/server/adapters/mongodb-repository");
   }
   return mongoAdapter;
 }
 
-// JSON-based implementation (fallback)
-async function getTransactionsJson(): Promise<Transaction[]> {
-  const data = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
-  return data.sort((a, b) => (a.date < b.date ? 1 : -1));
+function isBudgetSettings(value: unknown): value is BudgetSettings {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const cast = value as Partial<BudgetSettings>;
+  return (
+    typeof cast.monthlyBudget === "number" &&
+    typeof cast.warningThreshold === "number" &&
+    typeof cast.currency === "string"
+  );
 }
 
-async function addTransactionJson(input: NewTransactionInput): Promise<Transaction> {
+async function getTransactionsJson(userId: string): Promise<Transaction[]> {
+  const data = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+  return data
+    .filter((item) => item.userId === userId)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+async function addTransactionJson(userId: string, input: NewTransactionInput): Promise<Transaction> {
   const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
 
   const transaction: Transaction = {
     ...input,
+    userId,
     id: randomUUID(),
     createdAt: new Date().toISOString(),
   };
@@ -56,24 +69,26 @@ async function addTransactionJson(input: NewTransactionInput): Promise<Transacti
   return transaction;
 }
 
-async function deleteTransactionByIdJson(id: string): Promise<boolean> {
+async function deleteTransactionByIdJson(userId: string, id: string): Promise<boolean> {
   const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
-  const nextTransactions = transactions.filter((item) => item.id !== id);
+  const index = transactions.findIndex((item) => item.id === id && item.userId === userId);
 
-  if (nextTransactions.length === transactions.length) {
+  if (index === -1) {
     return false;
   }
 
-  await writeJsonFile(TRANSACTIONS_FILE, nextTransactions);
+  transactions.splice(index, 1);
+  await writeJsonFile(TRANSACTIONS_FILE, transactions);
   return true;
 }
 
 async function updateTransactionByIdJson(
+  userId: string,
   id: string,
   input: NewTransactionInput,
 ): Promise<Transaction | null> {
   const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
-  const index = transactions.findIndex((item) => item.id === id);
+  const index = transactions.findIndex((item) => item.id === id && item.userId === userId);
 
   if (index === -1) {
     return null;
@@ -83,6 +98,7 @@ async function updateTransactionByIdJson(
   const updated: Transaction = {
     ...current,
     ...input,
+    userId,
   };
 
   transactions[index] = updated;
@@ -91,8 +107,8 @@ async function updateTransactionByIdJson(
   return updated;
 }
 
-async function getDashboardSummaryJson(): Promise<DashboardSummary> {
-  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+async function getDashboardSummaryJson(userId: string): Promise<DashboardSummary> {
+  const transactions = await getTransactionsJson(userId);
   const monthKey = format(new Date(), "yyyy-MM");
   let currentBalance = 0;
   let totalIncomeThisMonth = 0;
@@ -122,8 +138,8 @@ async function getDashboardSummaryJson(): Promise<DashboardSummary> {
   };
 }
 
-async function getCategoryDistributionJson(): Promise<CategoryDistributionItem[]> {
-  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+async function getCategoryDistributionJson(userId: string): Promise<CategoryDistributionItem[]> {
+  const transactions = await getTransactionsJson(userId);
   const monthKey = format(new Date(), "yyyy-MM");
   const totals = new Map<string, number>();
 
@@ -142,8 +158,8 @@ async function getCategoryDistributionJson(): Promise<CategoryDistributionItem[]
     .sort((a, b) => b.total - a.total);
 }
 
-async function getMonthlyTrendJson(): Promise<MonthlyTrendItem[]> {
-  const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
+async function getMonthlyTrendJson(userId: string): Promise<MonthlyTrendItem[]> {
+  const transactions = await getTransactionsJson(userId);
   const now = new Date();
   const monthKeys = Array.from({ length: 6 }, (_, index) =>
     format(subMonths(now, 5 - index), "yyyy-MM"),
@@ -176,62 +192,86 @@ async function getMonthlyTrendJson(): Promise<MonthlyTrendItem[]> {
   return monthKeys.map((key) => bucket.get(key) as MonthlyTrendItem);
 }
 
-async function getBudgetSettingsJson(): Promise<BudgetSettings> {
-  return readJsonFile<BudgetSettings>(BUDGET_FILE, budgetFallback);
+async function getBudgetSettingsJson(userId: string): Promise<BudgetSettings> {
+  const raw = await readJsonFile<BudgetSettings | BudgetStore>(BUDGET_FILE, budgetFallback);
+
+  if (isBudgetSettings(raw)) {
+    return budgetFallback;
+  }
+
+  return raw[userId] ?? budgetFallback;
 }
 
 async function updateBudgetSettingsJson(
+  userId: string,
   settings: BudgetSettings,
 ): Promise<BudgetSettings> {
-  await writeJsonFile(BUDGET_FILE, settings);
+  const raw = await readJsonFile<BudgetSettings | BudgetStore>(BUDGET_FILE, budgetFallback);
+
+  const store: BudgetStore = isBudgetSettings(raw) ? {} : { ...raw };
+  store[userId] = settings;
+
+  await writeJsonFile(BUDGET_FILE, store);
   return settings;
 }
 
-// Adapter routing functions
-export async function getTransactions(): Promise<Transaction[]> {
+function ensureOwnedTransaction(userId: string, transaction: Transaction) {
+  return transaction.userId === userId;
+}
+
+export async function getTransactions(userId: string): Promise<Transaction[]> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
-      return adapter.getTransactions();
+      const data = await adapter.getTransactions();
+      return data.filter((item) => item.userId === userId);
     }
   }
-  return getTransactionsJson();
+
+  return getTransactionsJson(userId);
 }
 
-export async function addTransaction(input: NewTransactionInput): Promise<Transaction> {
+export async function addTransaction(
+  userId: string,
+  input: NewTransactionInput,
+): Promise<Transaction> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
-      return adapter.addTransaction(input);
+      return adapter.addTransaction({ ...(input as object), userId } as any);
     }
   }
-  return addTransactionJson(input);
+
+  return addTransactionJson(userId, input);
 }
 
-export async function addTransactionsBulk(inputs: NewTransactionInput[]): Promise<Transaction[]> {
+export async function addTransactionsBulk(
+  userId: string,
+  inputs: NewTransactionInput[],
+): Promise<Transaction[]> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
       const created: Transaction[] = [];
       for (const input of inputs) {
-        // call adapter.addTransaction for each item
-        const t = await adapter.addTransaction(input);
-        created.push(t);
+        const transaction = await adapter.addTransaction({ ...(input as object), userId } as any);
+        created.push(transaction);
       }
       return created;
     }
   }
 
-  // JSON fallback: append all transactions and write once
   const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
   const created: Transaction[] = [];
 
   for (const input of inputs) {
     const transaction: Transaction = {
       ...input,
+      userId,
       id: randomUUID(),
       createdAt: new Date().toISOString(),
     };
+
     transactions.push(transaction);
     created.push(transaction);
   }
@@ -240,7 +280,7 @@ export async function addTransactionsBulk(inputs: NewTransactionInput[]): Promis
   return created;
 }
 
-export async function deleteTransactionsBulk(ids: string[]): Promise<number> {
+export async function deleteTransactionsBulk(userId: string, ids: string[]): Promise<number> {
   if (ids.length === 0) {
     return 0;
   }
@@ -248,22 +288,34 @@ export async function deleteTransactionsBulk(ids: string[]): Promise<number> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
+      const transactions = await adapter.getTransactions();
+      const ownedIds = new Set(
+        transactions.filter((item) => item.userId === userId).map((item) => item.id),
+      );
+
       let deleted = 0;
       for (const id of ids) {
+        if (!ownedIds.has(id)) {
+          continue;
+        }
+
         const result = await adapter.deleteTransactionById(id);
         if (result) {
           deleted += 1;
         }
       }
+
       return deleted;
     }
   }
 
   const transactions = await readJsonFile<Transaction[]>(TRANSACTIONS_FILE, []);
   const idSet = new Set(ids);
-  const nextTransactions = transactions.filter((item) => !idSet.has(item.id));
-  const deleted = transactions.length - nextTransactions.length;
+  const nextTransactions = transactions.filter(
+    (item) => !(item.userId === userId && idSet.has(item.id)),
+  );
 
+  const deleted = transactions.length - nextTransactions.length;
   if (deleted > 0) {
     await writeJsonFile(TRANSACTIONS_FILE, nextTransactions);
   }
@@ -271,75 +323,143 @@ export async function deleteTransactionsBulk(ids: string[]): Promise<number> {
   return deleted;
 }
 
-export async function deleteTransactionById(id: string): Promise<boolean> {
+export async function deleteTransactionById(userId: string, id: string): Promise<boolean> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
+      const transactions = await adapter.getTransactions();
+      const transaction = transactions.find((item) => item.id === id);
+      if (!transaction || !ensureOwnedTransaction(userId, transaction)) {
+        return false;
+      }
+
       return adapter.deleteTransactionById(id);
     }
   }
-  return deleteTransactionByIdJson(id);
+
+  return deleteTransactionByIdJson(userId, id);
 }
 
 export async function updateTransactionById(
+  userId: string,
   id: string,
   input: NewTransactionInput,
 ): Promise<Transaction | null> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
+      const transactions = await adapter.getTransactions();
+      const transaction = transactions.find((item) => item.id === id);
+      if (!transaction || !ensureOwnedTransaction(userId, transaction)) {
+        return null;
+      }
+
       return adapter.updateTransactionById(id, input);
     }
   }
-  return updateTransactionByIdJson(id, input);
+
+  return updateTransactionByIdJson(userId, id, input);
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+export async function getDashboardSummary(userId: string): Promise<DashboardSummary> {
   if (useMongoDb) {
-    const adapter = await getMongoAdapter();
-    if (adapter) {
-      return adapter.getDashboardSummary();
+    const transactions = await getTransactions(userId);
+    const monthKey = format(new Date(), "yyyy-MM");
+    let currentBalance = 0;
+    let totalIncomeThisMonth = 0;
+    let totalExpenseThisMonth = 0;
+
+    for (const item of transactions) {
+      if (item.type === "income") {
+        currentBalance += item.amount;
+      } else {
+        currentBalance -= item.amount;
+      }
+
+      if (getMonthKey(item.date) === monthKey) {
+        if (item.type === "income") {
+          totalIncomeThisMonth += item.amount;
+        } else {
+          totalExpenseThisMonth += item.amount;
+        }
+      }
     }
+
+    return {
+      currentBalance,
+      totalIncomeThisMonth,
+      totalExpenseThisMonth,
+      monthKey,
+    };
   }
-  return getDashboardSummaryJson();
+
+  return getDashboardSummaryJson(userId);
 }
 
-export async function getCategoryDistribution(): Promise<CategoryDistributionItem[]> {
+export async function getCategoryDistribution(userId: string): Promise<CategoryDistributionItem[]> {
   if (useMongoDb) {
-    const adapter = await getMongoAdapter();
-    if (adapter) {
-      return adapter.getCategoryDistribution();
-    }
+    const transactions = await getTransactions(userId);
+    const monthKey = format(new Date(), "yyyy-MM");
+    const totals = new Map<string, number>();
+
+    transactions
+      .filter((item) => item.type === "expense" && getMonthKey(item.date) === monthKey)
+      .forEach((item) => {
+        const prev = totals.get(item.category) ?? 0;
+        totals.set(item.category, prev + item.amount);
+      });
+
+    return Array.from(totals.entries())
+      .map(([category, total]) => ({
+        category: category as CategoryDistributionItem["category"],
+        total,
+      }))
+      .sort((a, b) => b.total - a.total);
   }
-  return getCategoryDistributionJson();
+
+  return getCategoryDistributionJson(userId);
 }
 
-export async function getMonthlyTrend(): Promise<MonthlyTrendItem[]> {
+export async function getMonthlyTrend(userId: string): Promise<MonthlyTrendItem[]> {
   if (useMongoDb) {
-    const adapter = await getMongoAdapter();
-    if (adapter) {
-      return adapter.getMonthlyTrend();
+    const transactions = await getTransactions(userId);
+    const now = new Date();
+    const monthKeys = Array.from({ length: 6 }, (_, index) =>
+      format(subMonths(now, 5 - index), "yyyy-MM"),
+    );
+
+    const bucket = new Map<string, MonthlyTrendItem>();
+    for (const key of monthKeys) {
+      bucket.set(key, { month: key, income: 0, expense: 0 });
     }
+
+    for (const item of transactions) {
+      const key = getMonthKey(item.date);
+      const value = bucket.get(key);
+      if (!value) {
+        continue;
+      }
+
+      if (item.type === "income") {
+        value.income += item.amount;
+      } else {
+        value.expense += item.amount;
+      }
+    }
+
+    return monthKeys.map((key) => bucket.get(key) as MonthlyTrendItem);
   }
-  return getMonthlyTrendJson();
+
+  return getMonthlyTrendJson(userId);
 }
 
-export async function getBudgetSettings(): Promise<BudgetSettings> {
-  if (useMongoDb) {
-    const adapter = await getMongoAdapter();
-    if (adapter) {
-      return adapter.getBudgetSettings();
-    }
-  }
-  return getBudgetSettingsJson();
+export async function getBudgetSettings(userId: string): Promise<BudgetSettings> {
+  return getBudgetSettingsJson(userId);
 }
 
-export async function updateBudgetSettings(settings: BudgetSettings): Promise<BudgetSettings> {
-  if (useMongoDb) {
-    const adapter = await getMongoAdapter();
-    if (adapter) {
-      return adapter.updateBudgetSettings(settings);
-    }
-  }
-  return updateBudgetSettingsJson(settings);
+export async function updateBudgetSettings(
+  userId: string,
+  settings: BudgetSettings,
+): Promise<BudgetSettings> {
+  return updateBudgetSettingsJson(userId, settings);
 }

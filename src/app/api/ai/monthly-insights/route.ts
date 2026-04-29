@@ -3,11 +3,19 @@ import { generateMonthlyInsights, MonthlyInsight } from "@/lib/server/ai-service
 import { getTransactions, getBudgetSettings } from "@/lib/server/finance-repository";
 import { getMonthKey } from "@/lib/utils/date";
 import { format, subMonths } from "date-fns";
+import { getAuthSession } from "@/lib/server/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const transactions = await getTransactions();
-    const budget = await getBudgetSettings();
+    const session = await getAuthSession();
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const transactions = await getTransactions(session.userId);
+    const budget = await getBudgetSettings(session.userId);
 
     const now = new Date();
     const currentMonthKey = getMonthKey(format(now, "yyyy-MM-dd"));

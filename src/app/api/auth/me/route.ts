@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getMonthlyTrend } from "@/lib/server/finance-repository";
 import { getAuthSession } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +9,5 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const trend = await getMonthlyTrend(session.userId);
-  return NextResponse.json({ trend });
+  return NextResponse.json({ user: session });
 }

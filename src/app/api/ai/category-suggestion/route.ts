@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { suggestCategory } from "@/lib/server/ai-service";
 import { Category } from "@/lib/types/finance";
+import { getAuthSession } from "@/lib/server/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getAuthSession();
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { description, type } = body;
 
