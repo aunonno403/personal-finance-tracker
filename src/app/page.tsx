@@ -119,6 +119,23 @@ export default function HomePage() {
     await refreshAfterTransactionMutation();
   }
 
+  async function importTransactions(payloads: NewTransactionInput[]) {
+    // Bulk import: post all without refreshing each time, then refresh once
+    for (const payload of payloads) {
+      const response = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("One of the imports failed");
+      }
+    }
+
+    await refreshAfterTransactionMutation();
+  }
+
   async function deleteTransaction(id: string) {
     const response = await fetch(`/api/transactions?id=${id}`, {
       method: "DELETE",
@@ -281,6 +298,8 @@ export default function HomePage() {
         onToggleHistory={() => setShowFullHistory((value) => !value)}
         onDeleteTransaction={deleteTransaction}
         onEditTransaction={editTransaction}
+        allTransactions={allTransactions}
+        onImportTransactions={importTransactions}
       />
     </main>
   );

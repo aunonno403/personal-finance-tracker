@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ArrowDownCircle, ArrowUpCircle, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EditTransactionModal } from "@/components/dashboard/edit-transaction-modal";
+import { exportTransactionsToCSV } from "@/lib/utils/csv-export";
+import { parseCsvToTransactions } from "@/lib/utils/csv-import";
 import {
   CATEGORY_SUGGESTIONS,
   EXPENSE_CATEGORIES,
@@ -31,6 +33,8 @@ type RecentTransactionsProps = {
   onToggleHistory: () => void;
   onDeleteTransaction: (id: string) => Promise<void>;
   onEditTransaction: (id: string, payload: NewTransactionInput) => Promise<void>;
+  allTransactions?: Transaction[];
+  onImportTransactions?: (payloads: NewTransactionInput[]) => Promise<void>;
 };
 
 export function RecentTransactions({
@@ -40,12 +44,16 @@ export function RecentTransactions({
   onToggleHistory,
   onDeleteTransaction,
   onEditTransaction,
+  allTransactions,
+  onImportTransactions,
 }: RecentTransactionsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function handleDelete(id: string) {
     const confirmed = window.confirm("Delete this transaction?");
@@ -88,17 +96,82 @@ export function RecentTransactions({
           <CardTitle className="text-lg">
             {isShowingFullHistory ? "Full Transaction History" : "Recent Transactions"}
           </CardTitle>
-          {totalCount > 8 ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onToggleHistory}
-              className="text-xs"
-            >
-              {isShowingFullHistory ? "Show Last 8" : `View Full History (${totalCount})`}
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {totalCount > 8 ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onToggleHistory}
+                className="text-xs"
+              >
+                {isShowingFullHistory ? "Show Last 8" : `View Full History (${totalCount})`}
+              </Button>
+            ) : null}
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => exportTransactionsToCSV(transactions)}
+                disabled={transactions.length === 0}
+                className="text-sm"
+              >
+                Export Visible
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => exportTransactionsToCSV(allTransactions ?? transactions)}
+                disabled={(allTransactions ?? []).length === 0}
+                className="text-sm"
+              >
+                Export All
+              </Button>
+
+              <input
+                ref={(el) => { fileInputRef.current = el; }}
+                type="file"
+                accept="text/csv"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !onImportTransactions) return;
+                  setIsImporting(true);
+                  try {
+                    const text = await file.text();
+                    const parsed = parseCsvToTransactions(text);
+                    if (parsed.length === 0) {
+                      window.alert("No valid rows found in CSV.");
+                      return;
+                    }
+                    await onImportTransactions(parsed);
+                    window.alert(`Imported ${parsed.length} transactions.`);
+                  } catch (err) {
+                    console.error(err);
+                    window.alert("Import failed. Check CSV format.");
+                  } finally {
+                    setIsImporting(false);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }
+                }}
+              />
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!onImportTransactions}
+                className="text-sm"
+              >
+                {isImporting ? "Importing..." : "Import CSV"}
+              </Button>
+            </div>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
