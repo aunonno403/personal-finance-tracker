@@ -43,6 +43,7 @@ async function createIndexes(database: Db): Promise<void> {
   const budgetCollection = database.collection("budget");
 
   // Create transaction indexes
+  await transactionsCollection.createIndex({ userId: 1, date: -1 });
   await transactionsCollection.createIndex({ date: -1 });
   await transactionsCollection.createIndex({ category: 1 });
   await transactionsCollection.createIndex({ type: 1 });
@@ -52,24 +53,27 @@ async function createIndexes(database: Db): Promise<void> {
   await budgetCollection.createIndex({ userId: 1 }, { unique: true });
 }
 
-export async function getTransactions(): Promise<Transaction[]> {
+export async function getTransactions(userId?: string): Promise<Transaction[]> {
   const db = await getDatabase();
   const collection = db.collection<Transaction>("transactions");
 
   const transactions = await collection
-    .find({})
+    .find(userId ? { userId } : {})
     .sort({ date: -1 })
     .toArray();
 
   return transactions;
 }
 
-export async function addTransaction(input: NewTransactionInput): Promise<Transaction> {
+export async function addTransaction(
+  input: NewTransactionInput & { userId?: string },
+): Promise<Transaction> {
   const db = await getDatabase();
   const collection = db.collection<Transaction>("transactions");
 
   const transaction: Transaction = {
     ...input,
+    userId: input.userId,
     id: randomUUID(),
     createdAt: new Date().toISOString(),
   };
@@ -79,11 +83,11 @@ export async function addTransaction(input: NewTransactionInput): Promise<Transa
   return transaction;
 }
 
-export async function deleteTransactionById(id: string): Promise<boolean> {
+export async function deleteTransactionById(id: string, userId?: string): Promise<boolean> {
   const db = await getDatabase();
   const collection = db.collection<Transaction>("transactions");
 
-  const result = await collection.deleteOne({ id });
+  const result = await collection.deleteOne(userId ? { id, userId } : { id });
 
   return result.deletedCount > 0;
 }
@@ -91,6 +95,7 @@ export async function deleteTransactionById(id: string): Promise<boolean> {
 export async function updateTransactionById(
   id: string,
   input: NewTransactionInput,
+  userId?: string,
 ): Promise<Transaction | null> {
   const db = await getDatabase();
   const collection = db.collection<Transaction>("transactions");
@@ -98,11 +103,12 @@ export async function updateTransactionById(
   const updatedTransaction: Transaction = {
     ...input,
     id,
+    userId,
     createdAt: new Date().toISOString(),
   };
 
   const result = await collection.findOneAndUpdate(
-    { id },
+    userId ? { id, userId } : { id },
     { $set: updatedTransaction },
     { returnDocument: "after" },
   );
@@ -110,7 +116,7 @@ export async function updateTransactionById(
   return (result as any)?.value || null;
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+export async function getDashboardSummary(userId?: string): Promise<DashboardSummary> {
   const db = await getDatabase();
   const collection = db.collection<Transaction>("transactions");
 
@@ -118,7 +124,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const currentMonthKey = getMonthKey(format(now, "yyyy-MM-dd"));
 
   // Calculate current balance (all time income - all time expense)
-  const allTransactions = await collection.find({}).toArray();
+  const allTransactions = await collection.find(userId ? { userId } : {}).toArray();
 
   const currentBalance = allTransactions.reduce((sum, t) => {
     return t.type === "income" ? sum + t.amount : sum - t.amount;
@@ -145,14 +151,14 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   };
 }
 
-export async function getCategoryDistribution(): Promise<CategoryDistributionItem[]> {
+export async function getCategoryDistribution(userId?: string): Promise<CategoryDistributionItem[]> {
   const db = await getDatabase();
   const collection = db.collection<Transaction>("transactions");
 
   const now = new Date();
   const currentMonthKey = getMonthKey(format(now, "yyyy-MM-dd"));
 
-  const allTransactions = await collection.find({}).toArray();
+  const allTransactions = await collection.find(userId ? { userId } : {}).toArray();
 
   const categoryMap = new Map<string, number>();
 
@@ -177,11 +183,11 @@ export async function getCategoryDistribution(): Promise<CategoryDistributionIte
   return distribution.sort((a, b) => b.total - a.total);
 }
 
-export async function getMonthlyTrend(): Promise<MonthlyTrendItem[]> {
+export async function getMonthlyTrend(userId?: string): Promise<MonthlyTrendItem[]> {
   const db = await getDatabase();
   const collection = db.collection<Transaction>("transactions");
 
-  const allTransactions = await collection.find({}).toArray();
+  const allTransactions = await collection.find(userId ? { userId } : {}).toArray();
   const monthlyMap = new Map<
     string,
     { income: number; expense: number; month: string }
@@ -220,11 +226,11 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendItem[]> {
   );
 }
 
-export async function getBudgetSettings(): Promise<BudgetSettings> {
+export async function getBudgetSettings(userId?: string): Promise<BudgetSettings> {
   const db = await getDatabase();
-  const collection = db.collection<BudgetSettings>("budget");
+  const collection = db.collection<BudgetSettings & { userId: string }>("budget");
 
-  const budget = await collection.findOne({});
+  const budget = await collection.findOne(userId ? { userId } : {});
 
   return (
     budget || {
@@ -236,14 +242,15 @@ export async function getBudgetSettings(): Promise<BudgetSettings> {
 }
 
 export async function updateBudgetSettings(
+  userId: string,
   settings: BudgetSettings,
 ): Promise<BudgetSettings> {
   const db = await getDatabase();
-  const collection = db.collection<BudgetSettings>("budget");
+  const collection = db.collection<BudgetSettings & { userId: string }>("budget");
 
   const result = await collection.findOneAndUpdate(
-    {},
-    { $set: settings },
+    { userId },
+    { $set: { ...settings, userId } },
     {
       upsert: true,
       returnDocument: "after",

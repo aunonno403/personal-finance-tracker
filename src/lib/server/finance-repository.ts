@@ -196,7 +196,7 @@ async function getBudgetSettingsJson(userId: string): Promise<BudgetSettings> {
   const raw = await readJsonFile<BudgetSettings | BudgetStore>(BUDGET_FILE, budgetFallback);
 
   if (isBudgetSettings(raw)) {
-    return budgetFallback;
+    return raw;
   }
 
   return raw[userId] ?? budgetFallback;
@@ -223,8 +223,7 @@ export async function getTransactions(userId: string): Promise<Transaction[]> {
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
-      const data = await adapter.getTransactions();
-      return data.filter((item) => item.userId === userId);
+      return adapter.getTransactions(userId);
     }
   }
 
@@ -238,7 +237,7 @@ export async function addTransaction(
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
-      return adapter.addTransaction({ ...(input as object), userId } as any);
+      return adapter.addTransaction({ ...input, userId });
     }
   }
 
@@ -254,7 +253,7 @@ export async function addTransactionsBulk(
     if (adapter) {
       const created: Transaction[] = [];
       for (const input of inputs) {
-        const transaction = await adapter.addTransaction({ ...(input as object), userId } as any);
+        const transaction = await adapter.addTransaction({ ...input, userId });
         created.push(transaction);
       }
       return created;
@@ -288,10 +287,8 @@ export async function deleteTransactionsBulk(userId: string, ids: string[]): Pro
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
-      const transactions = await adapter.getTransactions();
-      const ownedIds = new Set(
-        transactions.filter((item) => item.userId === userId).map((item) => item.id),
-      );
+      const transactions = await adapter.getTransactions(userId);
+      const ownedIds = new Set(transactions.map((item) => item.id));
 
       let deleted = 0;
       for (const id of ids) {
@@ -299,7 +296,7 @@ export async function deleteTransactionsBulk(userId: string, ids: string[]): Pro
           continue;
         }
 
-        const result = await adapter.deleteTransactionById(id);
+        const result = await adapter.deleteTransactionById(id, userId);
         if (result) {
           deleted += 1;
         }
@@ -327,13 +324,13 @@ export async function deleteTransactionById(userId: string, id: string): Promise
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
-      const transactions = await adapter.getTransactions();
+      const transactions = await adapter.getTransactions(userId);
       const transaction = transactions.find((item) => item.id === id);
       if (!transaction || !ensureOwnedTransaction(userId, transaction)) {
         return false;
       }
 
-      return adapter.deleteTransactionById(id);
+      return adapter.deleteTransactionById(id, userId);
     }
   }
 
@@ -348,13 +345,13 @@ export async function updateTransactionById(
   if (useMongoDb) {
     const adapter = await getMongoAdapter();
     if (adapter) {
-      const transactions = await adapter.getTransactions();
+      const transactions = await adapter.getTransactions(userId);
       const transaction = transactions.find((item) => item.id === id);
       if (!transaction || !ensureOwnedTransaction(userId, transaction)) {
         return null;
       }
 
-      return adapter.updateTransactionById(id, input);
+      return adapter.updateTransactionById(id, input, userId);
     }
   }
 
@@ -454,6 +451,13 @@ export async function getMonthlyTrend(userId: string): Promise<MonthlyTrendItem[
 }
 
 export async function getBudgetSettings(userId: string): Promise<BudgetSettings> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.getBudgetSettings(userId);
+    }
+  }
+
   return getBudgetSettingsJson(userId);
 }
 
@@ -461,5 +465,12 @@ export async function updateBudgetSettings(
   userId: string,
   settings: BudgetSettings,
 ): Promise<BudgetSettings> {
+  if (useMongoDb) {
+    const adapter = await getMongoAdapter();
+    if (adapter) {
+      return adapter.updateBudgetSettings(userId, settings);
+    }
+  }
+
   return updateBudgetSettingsJson(userId, settings);
 }

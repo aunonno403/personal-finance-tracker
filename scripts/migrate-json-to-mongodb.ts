@@ -29,12 +29,14 @@ async function migrate() {
     console.log("✅ Connected to MongoDB");
 
     const db = client.db(process.env.MONGODB_DB_NAME || "personal-finance");
+    const migrationUserId = process.env.MIGRATION_USER_ID || getDefaultUserId();
 
     // Read JSON files
     console.log("\n📂 Reading JSON files...");
     const dataDir = join(process.cwd(), "data");
 
     let transactions = [];
+    let users = [];
     let budget = {
       monthlyBudget: 50000,
       warningThreshold: 0.8,
@@ -42,11 +44,23 @@ async function migrate() {
     };
 
     try {
+      const usersData = readFileSync(join(dataDir, "users.json"), "utf-8");
+      users = JSON.parse(usersData);
+      console.log(`✅ Loaded ${users.length} users`);
+    } catch (err) {
+      console.warn("⚠️  Could not load users.json, using empty array");
+      users = [];
+    }
+
+    try {
       const transactionsData = readFileSync(
         join(dataDir, "transactions.json"),
         "utf-8",
       );
-      transactions = JSON.parse(transactionsData);
+      transactions = JSON.parse(transactionsData).map((transaction: any) => ({
+        ...transaction,
+        userId: transaction.userId || migrationUserId,
+      }));
       console.log(`✅ Loaded ${transactions.length} transactions`);
     } catch (err) {
       console.warn("⚠️  Could not load transactions.json, using empty array");
@@ -63,9 +77,17 @@ async function migrate() {
 
     // Clear existing collections
     console.log("\n🗑️  Clearing existing collections...");
+    await db.collection("users").deleteMany({});
     await db.collection("transactions").deleteMany({});
     await db.collection("budget").deleteMany({});
     console.log("✅ Collections cleared");
+
+    // Insert users
+    if (users.length > 0) {
+      console.log("\n👤 Inserting users...");
+      const result = await db.collection("users").insertMany(users);
+      console.log(`✅ Inserted ${result.insertedCount} users`);
+    }
 
     // Insert transactions
     if (transactions.length > 0) {
@@ -76,17 +98,23 @@ async function migrate() {
       console.log(`✅ Inserted ${result.insertedCount} transactions`);
     }
 
-    // Insert budget
+    // Insert budget (store per user)
     console.log("\n💰 Inserting budget settings...");
-    const budgetResult = await db.collection("budget").insertOne(budget);
+    const budgetResult = await db.collection("budget").insertOne({
+      ...budget,
+      userId: migrationUserId,
+    });
     console.log(`✅ Inserted budget settings (ID: ${budgetResult.insertedId})`);
 
     // Create indexes
     console.log("\n🔧 Creating indexes...");
+    await db.collection("transactions").createIndex({ userId: 1, date: -1 });
     await db.collection("transactions").createIndex({ date: -1 });
     await db.collection("transactions").createIndex({ category: 1 });
     await db.collection("transactions").createIndex({ type: 1 });
     await db.collection("transactions").createIndex({ createdAt: -1 });
+    await db.collection("users").createIndex({ email: 1 }, { unique: true });
+    await db.collection("budget").createIndex({ userId: 1 }, { unique: true });
     console.log("✅ Indexes created");
 
     // Verification
@@ -94,12 +122,14 @@ async function migrate() {
     const transactionCount = await db
       .collection("transactions")
       .countDocuments();
+    const userCount = await db.collection("users").countDocuments();
     const budgetCount = await db.collection("budget").countDocuments();
 
+    console.log(`📊 User count: ${userCount}`);
     console.log(`📊 Transaction count: ${transactionCount}`);
     console.log(`📊 Budget count: ${budgetCount}`);
 
-    if (transactionCount === transactions.length && budgetCount > 0) {
+    if (transactionCount === transactions.length && userCount === users.length && budgetCount > 0) {
       console.log("\n✅ Migration completed successfully!");
     } else {
       console.warn("\n⚠️  Migration verification failed - counts don't match");
@@ -111,6 +141,23 @@ async function migrate() {
   } finally {
     await client.close();
     console.log("\n🔌 Disconnected from MongoDB");
+  }
+}
+
+function getDefaultUserId(): string {
+  try {
+    const usersData = readFileSync(join(process.cwd(), "data", "users.json"), "utf-8");
+    const users = JSON.parse(usersData) as Array<{ id?: string }>;
+    const firstUserId = users.find((user) => typeof user.id === "string")?.id;
+    if (!firstUserId) {
+      throw new Error("No users found in data/users.json");
+    }
+    console.log(`ℹ️  Using user id ${firstUserId} for migration`);
+    return firstUserId;
+  } catch {
+    throw new Error(
+      "MIGRATION_USER_ID is required if data/users.json is missing or empty",
+    );
   }
 }
 
