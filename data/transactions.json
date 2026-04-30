@@ -181,11 +181,171 @@
   },
   {
     "type": "expense",
+    "amount": 150,
+    "category": "Cigarettes",
+    "date": "2026-04-23",
+    "description": "N/A",
+    "id": "cc633dcb-5199-4a15-9c55-508f856d3e0c",
+    "createdAt": "2026-04-29T12:15:46.822Z"
+  },
+  {
+    "type": "expense",
+    "amount": 65,
+    "category": "Cigarettes",
+    "date": "2026-04-21",
+    "description": "Gold leaf & Lucky Strikes",
+    "id": "36225aae-e85a-4efd-b8a2-82df4c8a04a0",
+    "createdAt": "2026-04-29T12:15:46.822Z"
+  },
+  {
+    "type": "expense",
+    "amount": 1500,
+    "category": "Cigarettes",
+    "date": "2026-04-13",
+    "description": "lucky Strikes",
+    "id": "9bdb87dd-d94a-45bd-bdc1-03e142831724",
+    "createdAt": "2026-04-29T12:15:46.822Z"
+  },
+  {
+    "type": "expense",
+    "amount": 12,
+    "category": "Cigarettes",
+    "date": "2026-04-13",
+    "description": "Lucky Strike white-1",
+    "id": "5ae4aa07-fc7d-4937-ad46-f219337ddd03",
+    "createdAt": "2026-04-29T12:15:46.822Z"
+  },
+  {
+    "type": "expense",
     "amount": 200000,
     "category": "Others",
     "date": "2026-04-25",
     "description": "Divorce settlement",
-    "id": "43c64ad5-9400-4f36-88b5-bd1b365aee51",
-    "createdAt": "2026-04-25T08:01:52.353Z"
+    "id": "d552b50e-e8ca-444b-8bc7-ad14fb5f22b9",
+    "createdAt": "2026-04-29T12:16:51.090Z"
+  },
+  {
+    "type": "expense",
+    "amount": 500,
+    "category": "Cigarettes",
+    "date": "2026-04-24",
+    "description": "cigar",
+    "id": "73125281-4a4c-4d54-b6b2-01b49e664dc6",
+    "createdAt": "2026-04-29T12:16:51.091Z"
+  },
+  {
+    "type": "expense",
+    "amount": 60,
+    "category": "Cigarettes",
+    "date": "2026-04-24",
+    "description": "N/A",
+    "id": "5d7d95ca-6177-42ea-a1d8-653c00b768d8",
+    "createdAt": "2026-04-29T12:16:51.091Z"
+  },
+  {
+    "type": "expense",
+    "amount": 150,
+    "category": "Cigarettes",
+    "date": "2026-04-23",
+    "description": "N/A",
+    "id": "3d38c784-d2b4-4451-b851-14ff1443fbd2",
+    "createdAt": "2026-04-29T12:16:51.091Z"
+  },
+  {
+    "type": "expense",
+    "amount": 65,
+    "category": "Cigarettes",
+    "date": "2026-04-21",
+    "description": "Gold leaf & Lucky Strikes",
+    "id": "154d2961-2ea4-43fb-b67e-180d021de073",
+    "createdAt": "2026-04-29T12:16:51.091Z"
+  },
+  {
+    "type": "expense",
+    "amount": 1500,
+    "category": "Cigarettes",
+    "date": "2026-04-13",
+    "description": "lucky Strikes",
+    "id": "3ab41380-378b-4366-bd2f-9c6cf71990b7",
+    "createdAt": "2026-04-29T12:16:51.091Z"
+  },
+  {
+    "type": "expense",
+    "amount": 12,
+    "category": "Cigarettes",
+    "date": "2026-04-13",
+    "description": "Lucky Strike white-1",
+    "id": "0bc1ef4e-209b-4e70-88f1-909ff0aa2aa1",
+    "createdAt": "2026-04-29T12:16:51.091Z"
+  },
+  {
+    "type": "income",
+    "amount": 1500,
+    "category": "Others",
+    "date": "2026-04-24",
+    "description": "bank withdraw",
+    "userId": "f33ddc29-9882-4ede-a028-0bf708cece4c",
+    "id": "4f6f0bd9-c3bf-438a-b064-6e5210eeedcf",
+    "createdAt": "2026-04-29T20:48:58.791Z"
+  },
+  {
+    "type": "expense",
+    "amount": 500,
+    "category": "Cigarettes",
+    "date": "2026-04-24",
+    "description": "cigar",
+    "userId": "f33ddc29-9882-4ede-a028-0bf708cece4c",
+    "id": "3a375e4d-18b7-486e-a42e-044545b06bcd",
+    "createdAt": "2026-04-29T20:48:58.791Z"
+  },
+  {
+    "type": "expense",
+    "amount": 60,
+    "category": "Cigarettes",
+    "date": "2026-04-24",
+    "description": "N/A",
+    "userId": "f33ddc29-9882-4ede-a028-0bf708cece4c",
+    "id": "352ca31c-892f-43d3-83b1-cdfcfe54a603",
+    "createdAt": "2026-04-29T20:48:58.791Z"
+  },
+  {
+    "type": "expense",
+    "amount": 150,
+    "category": "Cigarettes",
+    "date": "2026-04-23",
+    "description": "N/A",
+    "userId": "f33ddc29-9882-4ede-a028-0bf708cece4c",
+    "id": "e3535520-6215-40ad-ace0-5feeba5ea4a1",
+    "createdAt": "2026-04-29T20:48:58.791Z"
+  },
+  {
+    "type": "expense",
+    "amount": 65,
+    "category": "Cigarettes",
+    "date": "2026-04-21",
+    "description": "Gold leaf & Lucky Strikes",
+    "userId": "f33ddc29-9882-4ede-a028-0bf708cece4c",
+    "id": "3b87fa5c-eeef-486e-8bd6-4ab57e986dfa",
+    "createdAt": "2026-04-29T20:48:58.791Z"
+  },
+  {
+    "type": "expense",
+    "amount": 12,
+    "category": "Cigarettes",
+    "date": "2026-04-13",
+    "description": "Lucky Strike white-1",
+    "userId": "f33ddc29-9882-4ede-a028-0bf708cece4c",
+    "id": "21e3bf2c-5ffa-491d-977b-13bbe6ef0d2a",
+    "createdAt": "2026-04-29T20:48:58.791Z"
+  },
+  {
+    "type": "expense",
+    "amount": 1070,
+    "category": "Food",
+    "date": "2026-04-29",
+    "description": "pizza",
+    "userId": "f33ddc29-9882-4ede-a028-0bf708cece4c",
+    "id": "42cb123b-67e7-47c0-a370-00a23c614f3a",
+    "createdAt": "2026-04-29T20:49:21.975Z"
   }
 ]

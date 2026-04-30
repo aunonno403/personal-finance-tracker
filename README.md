@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Personal Finance Tracker
+
+A full-featured personal finance application built with Next.js 14, React, TypeScript, and Tailwind CSS. Track income and expenses, visualize spending patterns, manage budgets, and authenticate with multi-user isolation.
+
+## Features
+
+- Dashboard with real-time financial summary
+- Transaction management (add, edit, delete, search, filter)
+- Budget tracking with configurable thresholds
+- Analytics with category distribution and monthly trends
+- User authentication with secure password hashing
+- Per-user data isolation via MongoDB
+- CSV import and export with preview editing
+- Import history with undo functionality
+- Responsive design for mobile and desktop
+
+## Tech Stack
+
+- **Next.js 14.2.5** - React framework with API routes
+- **React 18** - UI library
+- **TypeScript 5** - Type safety
+- **Tailwind CSS 3.4** - Styling
+- **MongoDB** - Cloud database (Atlas)
+- **shadcn/ui** - UI components
+- **Recharts** - Data visualization
+- **date-fns** - Date utilities
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- npm 9+
+- MongoDB Atlas account (for production/cloud)
+
+### Local Development
 
 ```bash
+git clone https://github.com/aunonno403/personal-finance-tracker.git
+cd personal-finance-tracker
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+This app is production-ready and designed for Vercel with MongoDB Atlas as the database backend.
 
-## Learn More
+For complete deployment instructions, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
 
-To learn more about Next.js, take a look at the following resources:
+### Quick deployment checklist:
+1. Set up MongoDB Atlas cluster
+2. Configure environment variables in Vercel
+3. Push code to GitHub
+4. Deploy via Vercel
+5. Run data migration if needed
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+- [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) - Production deployment with MongoDB and Vercel
+- [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - API reference
+- [progression_plan.md](./progression_plan.md) - Implementation roadmap
 
-## Deploy on Vercel
+## Development Commands
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm start        # Run production server
+npm run lint     # Run ESLint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## Project Structure
+
+```
+src/
+├── app/                       # Next.js app router
+│   ├── api/                   # API routes
+│   ├── page.tsx               # Dashboard
+│   └── login/                 # Authentication
+├── components/                # React components
+├── lib/                       # Utilities and types
+└── middleware.ts              # Route protection
+```
+
+## Key Features
+
+- **Authentication**: Secure login/register with MongoDB-backed sessions
+- **Multi-user**: Each user sees only their own transactions
+- **CSV Import/Export**: Bulk operations with preview and validation
+- **Real-time Dashboard**: Summary, analytics, and budget overview
+- **Responsive UI**: Works on mobile, tablet, and desktop
+
+## Environment Variables
+
+```env
+DB_TYPE=mongodb
+MONGODB_URI=mongodb://...
+MONGODB_DB_NAME=Finance_Manager_Project
+```
+
+For local JSON mode, omit `DB_TYPE` or set it to a non-mongodb value.
+
+## License
+
+MIT
+
+
+
+---
+
+Last updated: April 30, 2026
