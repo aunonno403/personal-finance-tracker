@@ -48,7 +48,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 This app is production-ready and designed for Vercel with MongoDB Atlas as the database backend.
 
-For complete deployment instructions, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
 
 ### Quick deployment checklist:
 1. Set up MongoDB Atlas cluster
@@ -57,11 +56,6 @@ For complete deployment instructions, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUI
 4. Deploy via Vercel
 5. Run data migration if needed
 
-## Documentation
-
-- [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) - Production deployment with MongoDB and Vercel
-- [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - API reference
-- [progression_plan.md](./progression_plan.md) - Implementation roadmap
 
 ## Development Commands
 
